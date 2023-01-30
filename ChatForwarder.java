@@ -6,9 +6,11 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ChatForwarder implements Listener {
@@ -31,7 +33,7 @@ public class ChatForwarder implements Listener {
 
 	@EventHandler
 	public void onChat(AsyncPlayerChatEvent event) {
-		String message = event.getPlayer().getName() + ": " + event.getMessage();
+		String message = "(Chat) " + event.getPlayer().getName() + ": " + event.getMessage();
 		forwardMessage(message);
 	}
 
@@ -47,6 +49,14 @@ public class ChatForwarder implements Listener {
 
 	public void stop() {
 		socket.close();
+	}
+
+	@EventHandler
+	public void onCommand(PlayerCommandPreprocessEvent event) {
+		Player player = event.getPlayer();
+		String command = event.getMessage();
+		String sendCommand = "(Command) " + player.getName() + ": " + command;
+		forwardMessage(sendCommand);
 	}
 
 }

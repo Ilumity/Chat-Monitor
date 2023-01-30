@@ -3,7 +3,10 @@ package com.lumity.chatmonitor;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -11,44 +14,68 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
 import org.bspfsystems.yamlconfiguration.file.YamlConfiguration;
 
-public class ChatMonitor extends JFrame {
-	private static final long serialVersionUID = 1L;
+public class ChatMonitor {
 
+	private JFrame frame;
 	private JTextArea chatArea;
-
 	private DatagramSocket socket;
-
 	private Thread readThread;
+	private MessageReceiver msg;
+	private Buttons buttons;
+	static ChatMonitor chatMonitor;
+
+	public static void main(String[] args) {
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					File file = new File("config.yml");
+					YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+					chatMonitor = new ChatMonitor();
+					chatMonitor.frame.setVisible(true);
+					chatMonitor.connect(config.getString("ServerAddress"), config.getInt("Port"));
+					chatMonitor.start();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
 
 	public ChatMonitor() {
-		setTitle("Chat Monitor");
+		initialize();
+	}
+
+	private void initialize() {
+		frame = new JFrame();
+		frame.setBounds(100, 100, 450, 300);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		frame.setTitle("Chat Monitor");
+
+		ImageIcon iconImage = new ImageIcon(ChatMonitor.class.getResource("/com/lumity/chatmonitor/axe.png"));
+		frame.setIconImage(iconImage.getImage());
 
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		int screenWidth = screenSize.width;
 		int screenHeight = screenSize.height;
 
-		setSize(screenWidth / 2, screenHeight / 2);
-		setLocationRelativeTo(null);
+		frame.setSize(960, 562);
+		frame.setLocationRelativeTo(null);
 
-		setResizable(false);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setResizable(false);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 		JLayeredPane layeredPane = new JLayeredPane();
-		getContentPane().add(layeredPane, BorderLayout.CENTER);
-
-		ImageIcon backgroundIcon = new ImageIcon(ChatMonitor.class.getResource("/com/lumity/chatmonitor/img5.jpg"));
-		JLabel background = new JLabel("");
-		background = new JLabel(backgroundIcon);
-		background.setBounds(0, 0, backgroundIcon.getIconWidth(), backgroundIcon.getIconHeight());
-		layeredPane.add(background);
+		layeredPane.setBackground(new Color(51, 51, 51));
+		frame.getContentPane().add(layeredPane, BorderLayout.CENTER);
 
 		chatArea = new JTextArea();
 		chatArea.setEditable(false);
@@ -58,10 +85,40 @@ public class ChatMonitor extends JFrame {
 		chatArea.setBounds(10, 10, (int) (screenWidth / 2 - 35), (int) (screenHeight / 2 - 58));
 
 		JScrollPane scrollPane = new JScrollPane(chatArea);
+		scrollPane.getVerticalScrollBar().setUI(new CustomScrollbarUI());
+		scrollPane.setPreferredSize(new Dimension(200, 200));
 		scrollPane.setBounds(10, 10, (int) (screenWidth / 2 - 35), (int) (screenHeight / 2 - 58));
-		scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 		layeredPane.add(scrollPane);
-		setVisible(true);
+
+		buttons = new Buttons();
+		msg = new MessageReceiver(buttons);
+
+		JButton chatButton = new CustomButton("Chat");
+		chatButton.setBounds(335, 496, 89, 23);
+		chatButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				buttons.toggleChat();
+			}
+		});
+		layeredPane.add(chatButton);
+
+		JButton cmdButton = new CustomButton("Commands");
+		cmdButton.setBounds(434, 496, 108, 23);
+		cmdButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				buttons.toggleCommands();
+			}
+		});
+		layeredPane.add(cmdButton);
+
+		JButton bothButton = new CustomButton("Both");
+		bothButton.setBounds(552, 496, 89, 23);
+		bothButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				buttons.toggleBoth();
+			}
+		});
+		layeredPane.add(bothButton);
 	}
 
 	public void connect(String host, int port) throws IOException {
@@ -89,25 +146,14 @@ public class ChatMonitor extends JFrame {
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				socket.receive(packet);
 				String message = new String(packet.getData(), 0, packet.getLength());
+				msg.displayMessage(message);
 				chatArea.append(message + "\n");
 				chatArea.setCaretPosition(chatArea.getDocument().getLength());
+
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-	}
-
-	public static void main(String[] args) {
-		File file = new File("config.yml");
-		YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-		ChatMonitor chatMonitor = new ChatMonitor();
-		try {
-			chatMonitor.connect(config.getString("ServerAddress"), config.getInt("Port"));
-			chatMonitor.start();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
 	}
 
 }
